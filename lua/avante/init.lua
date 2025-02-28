@@ -414,7 +414,7 @@ function M.setup(opts)
     end
     vim.schedule(function()
       Utils.info("Starting Rag Service ...")
-      RagService.launch_rag_service(add_resource_with_delay)
+      RagService.launch_rag_service(add_resource_with_delay, Utils.get_project_root())
     end)
   end
 

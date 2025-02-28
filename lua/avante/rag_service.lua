@@ -30,7 +30,7 @@ function M.get_current_image()
 end
 
 ---@param cb fun()
-function M.launch_rag_service(cb)
+function M.launch_rag_service(cb, project_path)
   local openai_api_key = os.getenv("OPENAI_API_KEY")
   if openai_api_key == nil then
     error("cannot launch avante rag service, OPENAI_API_KEY is not set")
@@ -63,10 +63,11 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("container %s not found, starting...", container_name))
   end
   local cmd_ = string.format(
-    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_API_BASE=%s -e OPENAI_EMBED_MODEL=%s %s",
+    "docker run -d -p %d:8000 --name %s -v %s:/data -v %s:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_API_BASE=%s -e OPENAI_EMBED_MODEL=%s %s",
     port,
     container_name,
     data_path,
+    project_path,
     openai_api_key,
     openai_base_url,
     os.getenv("OPENAI_EMBED_MODEL"),
@@ -83,7 +84,7 @@ function M.launch_rag_service(cb)
       end
     end,
   })
-end
+n end
 
 function M.stop_rag_service()
   local cmd = string.format("docker ps -a | grep '%s'", container_name)
@@ -111,7 +112,11 @@ function M.to_container_uri(uri)
   local scheme = M.get_scheme(uri)
   if scheme == "file" then
     local path = uri:match("^file://(.*)$")
-    uri = string.format("file:///host%s", path)
+    local project_root = Utils.get_project_root()
+    if path:sub(1, #project_root) == project_root then
+      path = "/host" .. path:sub(#project_root + 1)
+    end
+    uri = string.format("file://%s", path)
   end
   return uri
 end
@@ -120,10 +125,11 @@ function M.to_local_uri(uri)
   local scheme = M.get_scheme(uri)
   if scheme == "file" then
     local path = uri:match("^file://host(.*)$")
-    uri = string.format("file://%s", path)
+    local project_root = Utils.get_project_root()
+    uri = string.format("file://%s", project_root .. path)
   end
   return uri
-end
+    end
 
 function M.is_ready()
   vim.fn.system(string.format("curl -s -o /dev/null -w '%%{http_code}' %s", M.get_rag_service_url()))
